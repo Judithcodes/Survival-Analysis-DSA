@@ -13,6 +13,8 @@ for i = t:length
            maxDuration = 0; 
         end
         break
+    else
+        maxDuration = 0;
     end
 end
 
