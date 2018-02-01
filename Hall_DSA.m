@@ -8,41 +8,41 @@
 % characteristics
 
 % Simulation variables
-length = 100000;                    % number of samples in each channel of spectrum occupancy data
-channels = 10;                   % number of channels in test occupancy matrix
+length = 10000;                    % number of samples in each channel of spectrum occupancy data
+channels = 1;                   % number of channels in test occupancy matrix
 counts = zeros(1, length);    % stores number of occurences of each idle period length
 t = 0;                            % time marker
 tau = 1;                          % transmit duration requested
-threshold = 0.80;                  % interference threshold (probability of successful transmission)
+threshold = 0.50;                  % interference threshold (probability of successful transmission)
 
 % Occupancy data
-m = 1.0;
-b = 0.06;
-%----------------------------------------------------------------------------
-% Variant 1: Randomly generated occupancy, exponential 1
-%----------------------------------------------------------------------------
+L1 = 50;             % Occupancy event rate (lambda)
+L2 = 50;             % Vacancy event rate
+%=============================================================================
+% Variant 1: Randomly generated occupancy, exponential
+%=============================================================================
 % trainer = spectrum_occ(1, length);          % training array for DSA algorithm
 % M = spectrum_occ(channels, length);         % test matrix of occupancy data
-%----------------------------------------------------------------------------
-% Variant 2: Randomly generated occupancy, exponential 2
-%----------------------------------------------------------------------------
-% trainer = spectrum_occ_exp(1, length, m, b);
-% M = spectrum_occ_exp(channels, length, m, b);
-%----------------------------------------------------------------------------
+%=============================================================================
+% Variant 2: Randomly generated occupancy, dual poisson processes
+%=============================================================================
+M = spectrum_occ_poiss(channels, length, L1, L2);
+trainer = M(1, :);
+%=============================================================================
 % Variant 3: Periodic spectrum occupancy
-%----------------------------------------------------------------------------
-duty1st = 0.3;
-period1st = 10;
-trainer = [ones(1, period1st * duty1st), zeros(1, period1st - (period1st * duty1st))];
-trainer = repmat(trainer, 1, length/period1st);
-M = [ones(channels, period1st * duty1st), zeros(channels, period1st - (period1st * duty1st))];
-M = repmat(M, 1, length/period1st);
+%=============================================================================
+% duty1st = 0.3;
+% period1st = 10;
+% trainer = [ones(1, period1st * duty1st), zeros(1, period1st - (period1st * duty1st))];
+% trainer = repmat(trainer, 1, length/period1st);
+% M = [ones(channels, period1st * duty1st), zeros(channels, period1st - (period1st * duty1st))];
+% M = repmat(M, 1, length/period1st);
 %----------------------------------------------------------------------------
 occupied = sum(M, 2);
 vacant = length - occupied;
 
 % Secondary user transmit request scheduling
-duty2nd = .3;                     % duty cycle for secondary user transmit
+duty2nd = 1;                     % duty cycle for secondary user transmit
 period2nd = 10;                   % period for secondary user transmit
 requests = [zeros(1, period2nd - period2nd*duty2nd), ones(1, period2nd*duty2nd)];
 requests = repmat(requests, 1, length/period2nd); 
@@ -52,9 +52,9 @@ schedule = zeros(channels, length + 10);         % transmit grant schedule for s
 transmit = zeros(channels, length);         % segments where secondary user successfully transmits
 interfere = zeros(channels, length);        % segments where secondary user collides with primary user
 
-%--------------------------------------------------------------------------------------------------
+%=====================================================================================================
 % Train DSA algorithm
-%--------------------------------------------------------------------------------------------------
+%=====================================================================================================
 for i = 1:length
     if trainer(i) == 0
         t = t+1;
@@ -73,7 +73,23 @@ end
 % Calculate survival/hazard function
 periodsIdle = sum(counts);
 pdf = counts./periodsIdle;
-cdf = cumsum(pdf, 'reverse');
+cdf = cumsum(pdf);
+ccdf = cumsum(pdf, 'reverse');
+%=============================================================================
+% Cumulative Hazard Function
+%=============================================================================
+H = zeros(1, length);
+H(1) = counts(1)*(1/periodsIdle);
+for j = 2:length
+    if periodsIdle >= j
+        H(j) = H(j-1) + counts(j)*(1/(periodsIdle - j + 1));
+    else
+        H(j:length) = H(j-1);
+        break
+    end
+end
+theta = (-1)*log(threshold);
+%-----------------------------------------------------------------------------
 
 % Scan test matrix of occupancy data and grant or deny transmission
 % requests
@@ -87,21 +103,44 @@ for i = 1:channels
                 transmit(i, j) = 1;
             end
             if requests(i, j) == 1
-                %-------------------------------------------------------------
+                %=============================================================
                 % Algorithm 1
-                %-------------------------------------------------------------
+                %=============================================================
 %                 T = t + tau;
 %                 if T > length
-%                    T = length; 
+%                     T = length; 
 %                 end
-%                 if cdf(T) >= threshold
+%                 if H(T) < threshold
 %                     schedule(i, (j + 1) : (j + tau)) = 1;
 %                 end
-                %-------------------------------------------------------------
+% %                 if cdf(T) >= threshold
+% %                     schedule(i, (j + 1) : (j + tau)) = 1;
+% %                 end
+
+                %=============================================================
                 % Algorithm 2
+                %=============================================================
+%                 tau = 1;
+%                 while (H(t + tau)) < threshold
+%                     tau = tau + 1;
+%                 end
+%                 tau = tau - 1;
+%                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
                 %-------------------------------------------------------------
-                tau = find_duration(t, threshold, cdf);
-                schedule(i, (j + 1) : (j + tau)) = 1;
+%                 tau = find_duration(t, threshold, cdf);
+%                 schedule(i, (j + 1) : (j + tau)) = 1;
+                %-------------------------------------------------------------
+%                 for n = t:length
+%                     if (H(n) - H(t)) < theta
+%                         tau = n - t; 
+%                     else
+%                         break
+%                     end
+%                 end
+%                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
+                %-------------------------------------------------------------
+                tau = quantile(cdf, (1 - threshold * ccdf(t)));
+                schedule(i, (j + 1) : (j + 1 + tau)) = 1;
                 %-------------------------------------------------------------
             end
         elseif sample == 1
