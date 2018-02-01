@@ -16,8 +16,8 @@ tau = 1;                          % transmit duration requested
 threshold = 0.50;                  % interference threshold (probability of successful transmission)
 
 % Occupancy data
-L1 = 50;             % Occupancy event rate (lambda)
-L2 = 50;             % Vacancy event rate
+L1 = 20;             % Occupancy event rate (lambda)
+L2 = 20;             % Vacancy event rate
 %=============================================================================
 % Variant 1: Randomly generated occupancy, exponential
 %=============================================================================
@@ -47,7 +47,7 @@ period2nd = 10;                   % period for secondary user transmit
 requests = [zeros(1, period2nd - period2nd*duty2nd), ones(1, period2nd*duty2nd)];
 requests = repmat(requests, 1, length/period2nd); 
 requests = repmat(requests, channels, 1);       % transmit request schedule for secondary user
-schedule = zeros(channels, length + 10);         % transmit grant schedule for secondary user
+schedule = zeros(channels, length + 100);         % transmit grant schedule for secondary user
 %decision = zeros(channels, length);
 transmit = zeros(channels, length);         % segments where secondary user successfully transmits
 interfere = zeros(channels, length);        % segments where secondary user collides with primary user
@@ -120,27 +120,15 @@ for i = 1:channels
                 %=============================================================
                 % Algorithm 2
                 %=============================================================
-%                 tau = 1;
-%                 while (H(t + tau)) < threshold
-%                     tau = tau + 1;
-%                 end
-%                 tau = tau - 1;
-%                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
-                %-------------------------------------------------------------
-%                 tau = find_duration(t, threshold, cdf);
-%                 schedule(i, (j + 1) : (j + tau)) = 1;
-                %-------------------------------------------------------------
-%                 for n = t:length
-%                     if (H(n) - H(t)) < theta
-%                         tau = n - t; 
-%                     else
-%                         break
-%                     end
-%                 end
-%                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
-                %-------------------------------------------------------------
-                tau = quantile(cdf, (1 - threshold * ccdf(t)));
+                tau = 1;
+                while (H(t + tau)) < threshold
+                    tau = tau + 1;
+                end
+                tau = tau - 1;
                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
+                %-------------------------------------------------------------
+%                 tau = quantile(cdf, (1 - threshold * ccdf(t)));
+%                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
                 %-------------------------------------------------------------
             end
         elseif sample == 1

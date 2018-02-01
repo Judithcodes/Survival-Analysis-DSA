@@ -1,5 +1,6 @@
 % Survival analysis-based dynamic spectrum access algorithm
 % Initial framework, with sweeps
+% Sweeping transmit request period
 %
 % Based on 2017 conference paper by T.A. Hall et al.
 %--------------------------------------------------------------------------
@@ -14,8 +15,8 @@ threshold = 0.50;                  % interference threshold (probability of succ
 startP = 1;                     % starting spectrum occupancy density
 stopP = 10;                     % ending spectrum occupancy density
 sweepsP = 10;                   % number of sweeps for spectrum occupancy
-startQ = 1;                     % starting transmit request density
-stopQ = 10;                     % ending transmit request density
+startQ = 1;                     % starting transmit request duration
+stopQ = 10;                     % ending transmit request duration
 sweepsQ = 10;                   % number of sweeps for request density
 
 %decision = zeros(channels, length);
@@ -126,7 +127,7 @@ for p = linspace(startP, stopP, sweepsP)
 %             end
 %         end
         %--------------------------------------------------------------------------
-        schedule = zeros(1, length + 10);         % transmit grant schedule for secondary user
+        schedule = zeros(1, length + 100);         % transmit grant schedule for secondary user
         transmit = zeros(1, length);
         interfere = zeros(1, length);
         
@@ -146,11 +147,6 @@ for p = linspace(startP, stopP, sweepsP)
                     if T > length
                         T = length; 
                     end
-                    %------------------------------------------
-%                     if cdf(T) >= threshold
-%                         schedule((i + 1) : (i + tau)) = 1;
-%                     end
-                    %------------------------------------------
                     if H(T) < threshold
                        schedule((i + 1) : (i + tau)) = 1;
                     end
@@ -162,18 +158,6 @@ for p = linspace(startP, stopP, sweepsP)
 %                         tau = tau + 1;
 %                     end
 %                     tau = tau - 1;
-% %                     for j = t:length
-% %                         if (H(j) - H(t)) < theta
-% %                             tau = j - t; 
-% %                         else
-% %                             break
-% %                         end
-% %                     end
-%                     schedule((i + 1) : (i + 1 + tau)) = 1;
-%                     tau = find_duration(t, threshold, cdf);
-% %                     if vacant == length
-% %                        tau = 10; 
-% %                     end
 %                     schedule((i + 1) : (i + tau)) = 1;
                 %-------------------------------------------------------------
                 end

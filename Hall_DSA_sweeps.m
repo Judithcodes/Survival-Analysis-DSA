@@ -148,11 +148,6 @@ for p = linspace(startP, stopP, sweepsP)
                     if T > length
                         T = length; 
                     end
-%                     %------------------------------------------
-%                     if cdf(T) >= threshold
-%                         schedule((i + 1) : (i + tau)) = 1;
-%                     end
-%                     %------------------------------------------
                     if H(T) < threshold
                        schedule((i + 1) : (i + tau)) = 1;
                     end
@@ -166,21 +161,6 @@ for p = linspace(startP, stopP, sweepsP)
 %                     tau = tau - 1;
 %                     schedule((i + 1) : (i + 1 + tau)) = 1;
                     %------------------------------------------------------
-%                     for j = t:length
-%                         if (H(j) - H(t)) < theta
-%                             tau = j - t; 
-%                         else
-%                             break
-%                         end
-%                     end
-%                     schedule((i + 1) : (i + 1 + tau)) = 1;
-                    %------------------------------------------------------
-%                     tau = find_duration(t, threshold, cdf);
-%                     if vacant == length
-%                        tau = 10; 
-%                     end
-%                     schedule((i + 1) : (i + tau)) = 1;
-                %-------------------------------------------------------------
                 end
             elseif sample == 1
                 t = 0;
