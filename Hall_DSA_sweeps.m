@@ -11,10 +11,12 @@
 Length = 10000;                    % number of samples in each channel of spectrum occupancy data
 t = 0;                            % time marker
 tau = 1;                          % transmit duration requested
-threshold = 0.9;                  % interference threshold (probability of successful transmission)
-theta = (-1)*log(threshold);
-L1 = 30;             % Occupancy event rate (lambda)
-L2 = 30;             % Vacancy event rate
+% threshold = 0.9;                  % interference threshold (probability of successful transmission)
+% theta = (-1)*log(threshold);
+P1 = 15;             % Occupancy event rate (lambda)
+P2 = 15;             % Vacancy event rate
+S1 = 15;            % SU request event rate
+S2 = 15;            % SU idle event rate
 startP = 1;                     % starting spectrum occupancy density
 stopP = 10;                     % ending spectrum occupancy density
 sweepsP = 10;                   % number of sweeps for spectrum occupancy
@@ -32,6 +34,9 @@ interfRate = zeros(sweepsP, sweepsQ);
 %--------------------------------------------------------------------------------------------------
 for p = linspace(startP, stopP, sweepsP)
     x = p;
+    
+    threshold = 0.1*p;                 % interference threshold (probability of successful transmission)
+    theta = (-1)*log(threshold);
     % Occupancy data
 
     counts = zeros(1, Length);    % stores number of occurences of each idle period length
@@ -57,8 +62,8 @@ for p = linspace(startP, stopP, sweepsP)
     %----------------------------------------------------------------------------
     % Variant 2: Randomly generated occupancy, dual Poisson processes
     %----------------------------------------------------------------------------
-    M = spectrum_occ_poiss(1, Length, 10*p, 10*p);
-    trainer = spectrum_occ_poiss(1, Length, 10*p, 10*p);
+    M = spectrum_occ_poiss(1, Length, P1, P2);
+    trainer = spectrum_occ_poiss(1, Length, P1, P2);
     %----------------------------------------------------------------------------
     % Variant 3: Periodic spectrum occupancy
     %----------------------------------------------------------------------------
@@ -91,9 +96,9 @@ for p = linspace(startP, stopP, sweepsP)
     periodsIdle = sum(counts);
     pdf = counts./periodsIdle;
     cdf = cumsum(pdf, 'reverse');
-    %---------------------------------------------------------------------
-    % Cumulative Hazard Function
-    %---------------------------------------------------------------------
+%---------------------------------------------------------------------
+% Cumulative Hazard Function
+%---------------------------------------------------------------------
 %     H = zeros(1, Length);
 %     H(1) = counts(1)*(1/n);
 %     for j = 2:Length
@@ -104,7 +109,7 @@ for p = linspace(startP, stopP, sweepsP)
 %             break
 %         end
 %     end   
-    %---------------------------------------------------------------------
+%----------------------------------------------------------------------------
     Ti = [];
     for i = 1:Length
         Ti = [Ti, i*ones(1, counts(i))];
@@ -129,6 +134,7 @@ for p = linspace(startP, stopP, sweepsP)
             H(t) = H(t-1) + temp;
         end    
     end
+%----------------------------------------------------------------------------
 
     % Scan test matrix of occupancy data and grant or deny transmission
     % requests
@@ -137,18 +143,18 @@ for p = linspace(startP, stopP, sweepsP)
         y = q;
         t = 0;
         
-        % Secondary user transmit request scheduling
-        %--------------------------------------------------------------------------
-        % Variant 1: Periodic secondary transmit request
-        %--------------------------------------------------------------------------
-        period2nd = 10;                   % period for secondary user transmit
-        requests = [zeros(1, stopQ - q), ones(1, q)];
-        requests = repmat(requests, 1, Length/stopQ); 
+% Secondary user transmit request scheduling
+%--------------------------------------------------------------------------
+% Variant 1: Periodic secondary transmit request
+%--------------------------------------------------------------------------
+%         period2nd = 10;                   % period for secondary user transmit
+%         requests = [zeros(1, stopQ - q), ones(1, q)];
+%         requests = repmat(requests, 1, Length/stopQ); 
 %         requests = [ 0 1 ];
 %         requests = repmat(requests, 1, Length/2);
-        %--------------------------------------------------------------------------
-        % Variant 2: Random secondary transmit request
-        %--------------------------------------------------------------------------
+%--------------------------------------------------------------------------
+% Variant 2: Random secondary transmit request
+%--------------------------------------------------------------------------
 %         requests = zeros(1, Length);
 %         for k = 1:Length
 %             roll = stopQ * rand;
@@ -158,7 +164,11 @@ for p = linspace(startP, stopP, sweepsP)
 %                 requests(k) = 0;
 %             end
 %         end
-        %--------------------------------------------------------------------------
+%==========================================================================================
+% Variant 2: Poisson distributed SU transmit request
+%==========================================================================================
+        requests = spectrum_occ_poiss(1, Length, S1, S2);
+%------------------------------------------------------------------------------------------
         schedule = zeros(1, Length + 100);         % transmit grant schedule for secondary user
         transmit = zeros(1, Length);
         interfere = zeros(1, Length);
@@ -192,13 +202,23 @@ for p = linspace(startP, stopP, sweepsP)
                 %-------------------------------------------------------------
                 % Algorithm 2
                 %-------------------------------------------------------------
+%                     tau = 1;
+%                     while (H(t + tau)) < theta
+%                         tau = tau + 1;
+%                     end
+%                     tau = tau - 1;
+%                     schedule((i + 1) : (i + 1 + tau)) = 1;
+                %------------------------------------------------------
                     tau = 1;
-                    while (H(t + tau)) < theta
+                    while (H(t + tau) - H(t)) < theta
                         tau = tau + 1;
+                        if (t + tau) > Ti(periodsIdle)
+                           break
+                        end
                     end
                     tau = tau - 1;
                     schedule((i + 1) : (i + 1 + tau)) = 1;
-                %------------------------------------------------------
+                %-------------------------------------------------------------  
                 end
             elseif sample == 1
                 t = 0;

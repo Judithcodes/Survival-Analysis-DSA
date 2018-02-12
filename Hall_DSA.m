@@ -13,12 +13,14 @@ channels = 1;                   % number of channels in test occupancy matrix
 counts = zeros(1, Length);    % stores number of occurences of each idle period length
 t = 0;                            % time marker
 tau = 1;                          % transmit duration requested
-threshold = 0.90;                  % interference threshold (probability of successful transmission)
+threshold = 0.9;                  % interference threshold (probability of successful transmission)
 theta = (-1)*log(threshold);
 
 % Occupancy data
-L1 = 20;             % Occupancy event rate (lambda)
-L2 = 20;             % Vacancy event rate
+P1 = 20;             % Occupancy event rate (lambda)
+P2 = 20;             % Vacancy event rate
+S1 = 15;            % SU request event rate
+S2 = 15;            % SU idle event rate
 %=============================================================================
 % Variant 1: Randomly generated occupancy, exponential
 %=============================================================================
@@ -27,7 +29,7 @@ L2 = 20;             % Vacancy event rate
 %=============================================================================
 % Variant 2: Randomly generated occupancy, dual poisson processes
 %=============================================================================
-M = spectrum_occ_poiss(channels, Length, L1, L2);
+M = spectrum_occ_poiss(channels, Length, P1, P2);
 trainer = M(1, :);
 %=============================================================================
 % Variant 3: Periodic spectrum occupancy
@@ -43,33 +45,30 @@ occupied = sum(M, 2);
 vacant = Length - occupied;
 
 % Secondary user transmit request scheduling
-duty2nd = 1;                     % duty cycle for secondary user transmit
-period2nd = 10;                   % period for secondary user transmit
-requests = [zeros(1, period2nd - period2nd*duty2nd), ones(1, period2nd*duty2nd)];
-requests = repmat(requests, 1, Length/period2nd); 
-requests = repmat(requests, channels, 1);       % transmit request schedule for secondary user
+%==========================================================================================
+% Variant 1: Periodic SU transmit request
+%==========================================================================================
+% duty2nd = 1;                     % duty cycle for secondary user transmit
+% period2nd = 10;                   % period for secondary user transmit
+% requests = [zeros(1, period2nd - period2nd*duty2nd), ones(1, period2nd*duty2nd)];
+% requests = repmat(requests, 1, Length/period2nd); 
+% requests = repmat(requests, channels, 1);       % transmit request schedule for secondary user
+%==========================================================================================
+% Variant 2: Poisson distributed SU transmit request
+%==========================================================================================
+requests = spectrum_occ_poiss(channels, Length, S1, S2);
+%------------------------------------------------------------------------------------------
 schedule = zeros(channels, Length + 100);         % transmit grant schedule for secondary user
-%decision = zeros(channels, Length);
 transmit = zeros(channels, Length);         % segments where secondary user successfully transmits
 interfere = zeros(channels, Length);        % segments where secondary user collides with primary user
+
 
 %=====================================================================================================
 % Train DSA algorithm
 %=====================================================================================================
-for i = 1:Length
-    if trainer(i) == 0
-        t = t+1;
-        if (i + 1) > Length
-            counts(t) = counts(t) + 1;
-        else
-            if trainer(i + 1) == 1
-                counts(t) = counts(t) + 1;
-            end
-        end
-    elseif trainer(i) == 1        
-        t = 0;
-    end
-end
+% Generate array with number of instances of each length of idle period in
+% training vector
+counts = occupancy(trainer);
 
 n = length(find(counts));
 
@@ -97,6 +96,7 @@ for i = 1:Length
     Ti = [Ti, i*ones(1, counts(i))];
 end
 
+h = zeros(1, Length);
 H = zeros(1, Length);
 j = 1;
 for t = 1:n
@@ -108,6 +108,7 @@ for t = 1:n
             j = periodsIdle;
         end
     end
+    h(t) = temp;
     if t == 1
         H(t) = temp;
     elseif t == n   
@@ -116,6 +117,7 @@ for t = 1:n
         H(t) = H(t-1) + temp;
     end    
 end
+%-----------------------------------------------------------------------------
 
 % Scan test matrix of occupancy data and grant or deny transmission
 % requests
@@ -132,13 +134,13 @@ for i = 1:channels
                 %=============================================================
                 % Algorithm 1
                 %=============================================================
-%                 T = t + tau;
-%                 if T > Length
-%                     T = Length; 
-%                 end
-%                 if H(T) - H(t) < theta
-%                     schedule(i, (j + 1) : (j + tau)) = 1;
-%                 end
+                T = t + tau;
+                if T > Length
+                    T = Length; 
+                end
+                if H(T) - H(t) < theta
+                    schedule(i, (j + 1) : (j + tau)) = 1;
+                end
                 %-------------------------------------------------------------
 %                 T = t + tau;
 %                 if T > Length
@@ -150,16 +152,19 @@ for i = 1:channels
                 %=============================================================
                 % Algorithm 2
                 %=============================================================
-                tau = 1;
-                while (H(t + tau)) < theta
-                    tau = tau + 1;
-                end
-                tau = tau - 1;
-                schedule(i, (j + 1) : (j + 1 + tau)) = 1;
+%                 tau = 1;
+%                 while (H(t + tau)) < theta
+%                     tau = tau + 1;
+%                 end
+%                 tau = tau - 1;
+%                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
                 %-------------------------------------------------------------    
 %                 tau = 1;
 %                 while (H(t + tau) - H(t)) < theta
 %                     tau = tau + 1;
+%                     if (t + tau) > Ti(periodsIdle)
+%                        break
+%                     end
 %                 end
 %                 tau = tau - 1;
 %                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
