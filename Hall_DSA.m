@@ -1,36 +1,35 @@
 % Survival analysis-based dynamic spectrum access algorithm
-% Initial framework
+% Modifying length of training sequence
 %
-% Based on 2017 conference paper by T.A. Hall et al.
+% Based on 2017 journal and conference paper by T.A. Hall et al.
 %--------------------------------------------------------------------------
 
 % Training algorithm with spectrum occupancy data representative of channel
 % characteristics
 
 % Simulation variables
-Length = 10000;                    % number of samples in each channel of spectrum occupancy data
+Length = 1000000;                    % number of samples in each channel of spectrum occupancy data
 channels = 1;                   % number of channels in test occupancy matrix
-counts = zeros(1, Length);    % stores number of occurences of each idle period length
 t = 0;                            % time marker
-tau = 1;                          % transmit duration requested
-threshold = 0.9;                  % interference threshold (probability of successful transmission)
+tau = 10;                          % transmit duration requested
+threshold = 0.95;                  % interference threshold (probability of successful transmission)
 theta = (-1)*log(threshold);
 
 % Occupancy data
-P1 = 20;             % Occupancy event rate (lambda)
-P2 = 20;             % Vacancy event rate
+P1 = 50;             % Occupancy event rate (lambda)
+P2 = 50;             % Vacancy event rate
 S1 = 15;            % SU request event rate
 S2 = 15;            % SU idle event rate
 %=============================================================================
 % Variant 1: Randomly generated occupancy, exponential
 %=============================================================================
-% trainer = spectrum_occ(1, Length);          % training array for DSA algorithm
-% M = spectrum_occ(channels, Length);         % test matrix of occupancy data
+% trainer = spectrum_occ_exp(1, Length, P2, P1);          % training array for DSA algorithm
+% M = spectrum_occ_exp(channels, Length, P2, P1);         % test matrix of occupancy data
 %=============================================================================
 % Variant 2: Randomly generated occupancy, dual poisson processes
 %=============================================================================
 M = spectrum_occ_poiss(channels, Length, P1, P2);
-trainer = M(1, :);
+trainer = spectrum_occ_poiss(1, Length, P1, P2);
 %=============================================================================
 % Variant 3: Periodic spectrum occupancy
 %=============================================================================
@@ -40,8 +39,56 @@ trainer = M(1, :);
 % trainer = repmat(trainer, 1, Length/period1st);
 % M = [ones(channels, period1st * duty1st), zeros(channels, period1st - (period1st * duty1st))];
 % M = repmat(M, 1, Length/period1st);
-%----------------------------------------------------------------------------
-occupied = sum(M, 2);
+%=============================================================================
+% Variant 4: Gaussian distributed spectrum occupancy
+%=============================================================================
+% M = spectrum_occ(channels, Length);
+% trainer = spectrum_occ(1, Length);
+%=============================================================================
+% Variant 5: Time-varying occupancy, Poisson
+%=============================================================================
+% trainer = spectrum_occ_poiss(1, Length, P1, P2);
+% Tw = 5000;
+% nWin = floor(Length/Tw);
+% m = 1:nWin;
+% 
+% % Sinusoidal variation
+% %---------------------
+% % P2 = 20 + 15*sin(2*pi*m/10);            % Vacancy event rate 
+% 
+% % Linear variation
+% %----------------------
+% P2 = 2 + abs(100-m);
+% P1(1:100) = 2 + m(1:100);
+% P1(101:200) = 102 - abs(100 - m(101:200));
+% 
+% M = [];
+% for i = 1:nWin
+%    M =  [M, spectrum_occ_poiss(channels, Tw, P1(i), P2(i))];
+% end
+%=============================================================================
+% Variant 6: Time-varying occupancy, exponential
+%=============================================================================
+% trainer = spectrum_occ_exp(1, Length, P2, P1);
+% Tw = 5000;
+% nWin = floor(Length/Tw);
+% m = 1:nWin;
+% 
+% % Sinusoidal variation
+% %----------------------
+% % P2 = 20 + 15*sin(2*pi*m/10);            % Vacancy event rate 
+% 
+% % Linear variation
+% %----------------------
+% P2 = abs(100-8*m);
+% 
+% M = [];
+% for i = 1:nWin
+%     M =  [M, spectrum_occ_exp(channels, Tw, P2(i), P1)];
+% end
+%-----------------------------------------------------------------------------
+
+occupied = sum(M);
 vacant = Length - occupied;
 
 % Secondary user transmit request scheduling
@@ -80,17 +127,6 @@ ccdf = cumsum(pdf, 'reverse');
 %=============================================================================
 % Cumulative Hazard Function
 %=============================================================================
-% H = zeros(1, Length);
-% H(1) = counts(1)*(1/n);
-% for j = 2:Length
-%     if periodsIdle >= j
-%         H(j) = H(j-1) + counts(j)*(1/(periodsIdle - j + 1));
-%     else
-%         H(j:Length) = H(j-1);
-%         break
-%     end
-% end
-%-----------------------------------------------------------------------------
 Ti = [];
 for i = 1:Length
     Ti = [Ti, i*ones(1, counts(i))];
@@ -106,6 +142,7 @@ for t = 1:n
         j = j + 1;
         if j > periodsIdle
             j = periodsIdle;
+            break
         end
     end
     h(t) = temp;
@@ -134,13 +171,13 @@ for i = 1:channels
                 %=============================================================
                 % Algorithm 1
                 %=============================================================
-                T = t + tau;
-                if T > Length
-                    T = Length; 
-                end
-                if H(T) - H(t) < theta
-                    schedule(i, (j + 1) : (j + tau)) = 1;
-                end
+%                 T = t + tau;
+%                 if T > Length
+%                     T = Length; 
+%                 end
+%                 if H(T) - H(t) < theta
+%                     schedule(i, (j + 1) : (j + tau)) = 1;
+%                 end
                 %-------------------------------------------------------------
 %                 T = t + tau;
 %                 if T > Length
@@ -159,15 +196,15 @@ for i = 1:channels
 %                 tau = tau - 1;
 %                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
                 %-------------------------------------------------------------    
-%                 tau = 1;
-%                 while (H(t + tau) - H(t)) < theta
-%                     tau = tau + 1;
-%                     if (t + tau) > Ti(periodsIdle)
-%                        break
-%                     end
-%                 end
-%                 tau = tau - 1;
-%                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
+                tau = 1;
+                while (H(t + tau) - H(t)) < theta
+                    tau = tau + 1;
+                    if (t + tau) > Ti(periodsIdle)
+                       break
+                    end
+                end
+                tau = tau - 1;
+                schedule(i, (j + 1) : (j + 1 + tau)) = 1;
                 %-------------------------------------------------------------  
             end
         elseif sample == 1
@@ -178,9 +215,10 @@ for i = 1:channels
         end
     end
 end
-
+    
 % Calculate metrics
 transTot = sum(transmit, 2);
-util = transTot./vacant;
+util = 100 * transTot./vacant;
 interfTot = sum(interfere, 2);
-interfRate = interfTot./(Length);
+interfRate = 100 * interfTot./(Length);
+

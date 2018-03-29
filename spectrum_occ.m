@@ -10,9 +10,9 @@ n = 6*samples;
 
 % Generating single channel occupancy data
 T = [];
-mu = rand;
+% del = abs(randn);
 for i = 1:samples
-    del = exprnd(mu);
+    del = abs(randn);
     if del < 1
         T = [T , 0];
     elseif del >= 1

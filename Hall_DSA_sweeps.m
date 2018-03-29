@@ -1,7 +1,7 @@
 % Survival analysis-based dynamic spectrum access algorithm
 % Initial framework, with sweeps
 %
-% Based on 2017 conference paper by T.A. Hall et al.
+% Based on 2017 journal and conference paper by T.A. Hall et al.
 %--------------------------------------------------------------------------
 
 % Training algorithm with spectrum occupancy data representative of channel
@@ -11,8 +11,8 @@
 Length = 10000;                    % number of samples in each channel of spectrum occupancy data
 t = 0;                            % time marker
 tau = 1;                          % transmit duration requested
-% threshold = 0.9;                  % interference threshold (probability of successful transmission)
-% theta = (-1)*log(threshold);
+threshold = 0.9;                  % interference threshold (probability of successful transmission)
+theta = (-1)*log(threshold);
 P1 = 15;             % Occupancy event rate (lambda)
 P2 = 15;             % Vacancy event rate
 S1 = 15;            % SU request event rate
