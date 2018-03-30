@@ -12,12 +12,12 @@ Length = 1000000;                    % number of samples in each channel of spec
 channels = 1;                   % number of channels in test occupancy matrix
 t = 0;                            % time marker
 tau = 10;                          % transmit duration requested
-threshold = 0.95;                  % interference threshold (probability of successful transmission)
+threshold = 0.90;                  % interference threshold (probability of successful transmission)
 theta = (-1)*log(threshold);
 
 % Occupancy data
-P1 = 50;             % Occupancy event rate (lambda)
-P2 = 50;             % Vacancy event rate
+P1 = 20;             % Occupancy event rate (lambda)
+P2 = 20;             % Vacancy event rate
 S1 = 15;            % SU request event rate
 S2 = 15;            % SU idle event rate
 %=============================================================================
@@ -28,8 +28,8 @@ S2 = 15;            % SU idle event rate
 %=============================================================================
 % Variant 2: Randomly generated occupancy, dual poisson processes
 %=============================================================================
-M = spectrum_occ_poiss(channels, Length, P1, P2);
-trainer = spectrum_occ_poiss(1, Length, P1, P2);
+% M = spectrum_occ_poiss(channels, Length, P1, P2);
+% trainer = spectrum_occ_poiss(1, Length, P1, P2);
 %=============================================================================
 % Variant 3: Periodic spectrum occupancy
 %=============================================================================
@@ -47,25 +47,26 @@ trainer = spectrum_occ_poiss(1, Length, P1, P2);
 %=============================================================================
 % Variant 5: Time-varying occupancy, Poisson
 %=============================================================================
-% trainer = spectrum_occ_poiss(1, Length, P1, P2);
-% Tw = 5000;
-% nWin = floor(Length/Tw);
-% m = 1:nWin;
-% 
-% % Sinusoidal variation
-% %---------------------
-% % P2 = 20 + 15*sin(2*pi*m/10);            % Vacancy event rate 
-% 
-% % Linear variation
-% %----------------------
+trainer = spectrum_occ_poiss(1, Length, P1, P2);
+Tw = 5000;
+nWin = floor(Length/Tw);
+m = 1:nWin;
+
+% Sinusoidal channel parameter variations
+%----------------------------------------
+P1 = 20 - 15*sin(2*pi*(m-1)/100);             % Occupancy event rate
+P2 = 20 + 15*sin(2*pi*(m-1)/100);            % Vacancy event rate
+
+% Linear variation
+%----------------------
 % P2 = 2 + abs(100-m);
 % P1(1:100) = 2 + m(1:100);
 % P1(101:200) = 102 - abs(100 - m(101:200));
-% 
-% M = [];
-% for i = 1:nWin
-%    M =  [M, spectrum_occ_poiss(channels, Tw, P1(i), P2(i))];
-% end
+
+M = [];
+for i = 1:nWin
+   M =  [M, spectrum_occ_poiss(channels, Tw, P1(i), P2(i))];
+end
 %=============================================================================
 % Variant 6: Time-varying occupancy, exponential
 %=============================================================================
@@ -171,13 +172,13 @@ for i = 1:channels
                 %=============================================================
                 % Algorithm 1
                 %=============================================================
-%                 T = t + tau;
-%                 if T > Length
-%                     T = Length; 
-%                 end
-%                 if H(T) - H(t) < theta
-%                     schedule(i, (j + 1) : (j + tau)) = 1;
-%                 end
+                T = t + tau;
+                if T > Length
+                    T = Length; 
+                end
+                if H(T) - H(t) < theta
+                    schedule(i, (j + 1) : (j + tau)) = 1;
+                end
                 %-------------------------------------------------------------
 %                 T = t + tau;
 %                 if T > Length
@@ -196,15 +197,15 @@ for i = 1:channels
 %                 tau = tau - 1;
 %                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
                 %-------------------------------------------------------------    
-                tau = 1;
-                while (H(t + tau) - H(t)) < theta
-                    tau = tau + 1;
-                    if (t + tau) > Ti(periodsIdle)
-                       break
-                    end
-                end
-                tau = tau - 1;
-                schedule(i, (j + 1) : (j + 1 + tau)) = 1;
+%                 tau = 1;
+%                 while (H(t + tau) - H(t)) < theta
+%                     tau = tau + 1;
+%                     if (t + tau) > Ti(periodsIdle)
+%                        break
+%                     end
+%                 end
+%                 tau = tau - 1;
+%                 schedule(i, (j + 1) : (j + 1 + tau)) = 1;
                 %-------------------------------------------------------------  
             end
         elseif sample == 1

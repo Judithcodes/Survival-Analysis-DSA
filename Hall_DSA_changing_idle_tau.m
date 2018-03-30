@@ -269,8 +269,8 @@ for g = 1:50
 
     end
 
-    UTIL(g) = mean(util);
-    INTERF(g) = mean(interfRate);
+    UTIL(g) = mean(util(g, :));
+    INTERF(g) = mean(interfRate(g, :));
     
 end
 
